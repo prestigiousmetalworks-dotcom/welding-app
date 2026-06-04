@@ -10,4 +10,8 @@ A tool for managing welding projects, tracking materials, and logging weld recor
 
 ## Getting Started
 
-Documentation coming soon.
+Clone the repository and open the project folder to begin.
+
+## Contributing
+
+Pull requests are welcome. Please open an issue first to discuss any major changes.
