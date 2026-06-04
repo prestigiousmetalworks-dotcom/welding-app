@@ -1,11 +1,53 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Alert,
   StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Platform,
+  Animated, Pressable, Image,
 } from 'react-native';
 import { supabase } from './lib/supabase';
 
-type Screen = 'signin' | 'onboarding' | 'app';
+const LOGO = require('./assets/343d94cd-7f8b-46c4-b64b-0b3de23216b7.png');
+const LOGO_ICON = require('./assets/1c666a7c-b0e3-4786-b491-f0a487c5a705.png');
+
+// Animated button — lifts on web hover, depresses on press
+function PressBtn({
+  onPress, style, children, disabled = false,
+}: {
+  onPress: () => void;
+  style?: any;
+  children: React.ReactNode;
+  disabled?: boolean;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  function lift() {
+    Animated.spring(scale, { toValue: 1.03, useNativeDriver: true, speed: 40, bounciness: 4 }).start();
+  }
+  function depress() {
+    Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+  }
+  function restore() {
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 4 }).start();
+  }
+
+  return (
+    <Pressable
+      onPress={disabled ? undefined : onPress}
+      onPressIn={depress}
+      onPressOut={restore}
+      // @ts-ignore — web-only props
+      onMouseEnter={Platform.OS === 'web' ? lift : undefined}
+      onMouseLeave={Platform.OS === 'web' ? restore : undefined}
+      style={{ cursor: Platform.OS === 'web' ? 'pointer' : undefined } as any}
+    >
+      <Animated.View style={[style, { transform: [{ scale }], opacity: disabled ? 0.5 : 1 }]}>
+        {children}
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+type Screen = 'signin' | 'signup' | 'onboarding' | 'app';
 type Tab = 'analyze' | 'machine' | 'progress' | 'community' | 'profile';
 type OnboardingStep = 'welcome' | 'username' | 'processes' | 'follow' | 'done';
 type AnalyzeState = 'capture' | 'processing' | 'results' | 'posting' | 'posted';
@@ -184,8 +226,21 @@ function ViewfinderCorner({ position }: { position: 'tl'|'tr'|'bl'|'br' }) {
 function AnalyzeScreen() {
   const [state, setState] = useState<AnalyzeState>('capture');
   const [step, setStep] = useState(0);
+  const [savedPhoto, setSavedPhoto] = useState(false);
   const totalScore = 83;
   const grade = gradeFromScore(totalScore);
+
+  function handleSavePhoto() {
+    if (Platform.OS === 'web') {
+      // On web — trigger a download of a placeholder image
+      const link = document.createElement('a');
+      link.href = 'data:text/plain;charset=utf-8,HotPass Weld Score: ' + totalScore + ' (' + grade + ')';
+      link.download = 'hotpass-weld-' + totalScore + '.txt';
+      link.click();
+    }
+    setSavedPhoto(true);
+    setTimeout(() => setSavedPhoto(false), 2500);
+  }
 
   function handleAnalyze() {
     setState('processing');
@@ -246,12 +301,12 @@ function AnalyzeScreen() {
             ))}
           </View>
 
-          <TouchableOpacity style={styles.captureBtn} onPress={handleAnalyze}>
+          <PressBtn style={styles.captureBtn} onPress={handleAnalyze}>
             <View style={styles.captureBtnInner}>
               <View style={styles.captureBtnRing} />
               <View style={styles.captureBtnCore} />
             </View>
-          </TouchableOpacity>
+          </PressBtn>
           <Text style={styles.captureHint}>PRESS TO ANALYZE WELD</Text>
         </View>
       </View>
@@ -413,13 +468,28 @@ function AnalyzeScreen() {
         <Text style={styles.wrongProcessText}>Wrong process? Tap to correct →</Text>
       </TouchableOpacity>
 
+      {savedPhoto && (
+        <View style={styles.savedToast}>
+          <Text style={styles.savedToastText}>✓  PHOTO SAVED TO DEVICE</Text>
+        </View>
+      )}
+
       {/* Action buttons */}
-      <TouchableOpacity style={styles.button} onPress={() => setState('posting')}>
+      <PressBtn style={styles.button} onPress={() => setState('posting')}>
         <Text style={styles.buttonText}>SHARE TO COMMUNITY</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.buttonOutline} onPress={() => setState('capture')}>
-        <Text style={styles.buttonOutlineText}>ANALYZE ANOTHER</Text>
-      </TouchableOpacity>
+      </PressBtn>
+
+      <View style={styles.actionRow}>
+        <TouchableOpacity style={styles.actionRowBtn} onPress={handleSavePhoto}>
+          <Text style={styles.actionRowIcon}>⬇</Text>
+          <Text style={styles.actionRowText}>SAVE PHOTO</Text>
+        </TouchableOpacity>
+        <View style={styles.actionRowDivider} />
+        <TouchableOpacity style={styles.actionRowBtn} onPress={() => setState('capture')}>
+          <Text style={styles.actionRowIcon}>＋</Text>
+          <Text style={styles.actionRowText}>NEW WELD</Text>
+        </TouchableOpacity>
+      </View>
 
     </ScrollView>
   );
@@ -1574,7 +1644,8 @@ function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
         <View style={styles.onboardingScreen}>
           <View style={styles.onboardingHero}>
             <View style={styles.onboardingGlow} />
-            <Text style={styles.onboardingLogo}>HOTPASS</Text>
+            <Image source={LOGO_ICON} style={styles.onboardingLogoImage} resizeMode="contain" />
+            <Text style={styles.onboardingLogoText}>HOTPASS</Text>
             <Text style={styles.onboardingTagline}>THE PLATFORM BUILT{'\n'}FOR WELDERS.</Text>
           </View>
           <View style={styles.onboardingContent}>
@@ -1787,18 +1858,21 @@ export default function App() {
   }
 
   async function handleSignUp() {
-    if (!email || !password) return;
+    if (!email.trim()) { setAuthError('Enter your email address.'); return; }
+    if (!password || password.length < 6) { setAuthError('Password must be at least 6 characters.'); return; }
     setAuthLoading(true);
     setAuthError('');
     try {
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
       if (error) {
         setAuthError(error.message);
-      } else {
+      } else if (data.user) {
         setScreen('onboarding');
+      } else {
+        setAuthError('Check your email to confirm your account, then sign in.');
       }
-    } catch {
-      setAuthError('Something went wrong. Try again.');
+    } catch (e: any) {
+      setAuthError(e?.message ?? 'Something went wrong. Try again.');
     }
     setAuthLoading(false);
   }
@@ -1807,16 +1881,68 @@ export default function App() {
     return <OnboardingScreen onComplete={() => setScreen('app')} />;
   }
 
+  if (screen === 'signup') {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.authInner}>
+          <TouchableOpacity onPress={() => { setScreen('signin'); setAuthError(''); }} style={styles.backBtn}>
+            <Text style={styles.backBtnText}>← Back</Text>
+          </TouchableOpacity>
+
+          <Image source={LOGO_ICON} style={styles.logoImage} resizeMode="contain" />
+          <Text style={styles.logoText}>HOTPASS</Text>
+          <Text style={styles.tagline}>CREATE YOUR ACCOUNT</Text>
+
+          <TextInput
+            style={styles.input}
+            placeholder="Email address"
+            placeholderTextColor="#333"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={t => { setEmail(t); setAuthError(''); }}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Password (min 6 characters)"
+            placeholderTextColor="#333"
+            secureTextEntry
+            value={password}
+            onChangeText={t => { setPassword(t); setAuthError(''); }}
+          />
+
+          {authError ? <Text style={styles.authError}>{authError}</Text> : null}
+
+          <PressBtn
+            style={[styles.button, { opacity: authLoading ? 0.6 : 1 }]}
+            onPress={handleSignUp}
+            disabled={authLoading}
+          >
+            {authLoading
+              ? <ActivityIndicator color="#000" />
+              : <Text style={styles.buttonText}>CREATE ACCOUNT</Text>
+            }
+          </PressBtn>
+
+          <TouchableOpacity onPress={() => setScreen('app')} style={{ alignItems: 'center', marginTop: 8 }}>
+            <Text style={styles.hint}>Skip — preview the app</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   if (screen === 'signin') {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.authInner}>
-          <Text style={styles.logo}>HOTPASS</Text>
+          <Image source={LOGO_ICON} style={styles.logoImage} resizeMode="contain" />
+          <Text style={styles.logoText}>HOTPASS</Text>
           <Text style={styles.tagline}>BUILT FOR WELDERS.</Text>
 
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder="Email address"
             placeholderTextColor="#333"
             autoCapitalize="none"
             keyboardType="email-address"
@@ -1834,7 +1960,7 @@ export default function App() {
 
           {authError ? <Text style={styles.authError}>{authError}</Text> : null}
 
-          <TouchableOpacity
+          <PressBtn
             style={[styles.button, { opacity: authLoading ? 0.6 : 1 }]}
             onPress={handleSignIn}
             disabled={authLoading}
@@ -1843,15 +1969,14 @@ export default function App() {
               ? <ActivityIndicator color="#000" />
               : <Text style={styles.buttonText}>SIGN IN</Text>
             }
-          </TouchableOpacity>
+          </PressBtn>
 
-          <TouchableOpacity
-            style={[styles.buttonOutline, { opacity: authLoading ? 0.6 : 1 }]}
-            onPress={handleSignUp}
-            disabled={authLoading}
+          <PressBtn
+            style={styles.buttonOutline}
+            onPress={() => { setAuthError(''); setScreen('signup'); }}
           >
             <Text style={styles.buttonOutlineText}>CREATE ACCOUNT</Text>
-          </TouchableOpacity>
+          </PressBtn>
 
           <TouchableOpacity onPress={() => setScreen('app')} style={{ alignItems: 'center', marginTop: 8 }}>
             <Text style={styles.hint}>Skip — preview the app</Text>
@@ -1866,7 +1991,8 @@ export default function App() {
       <View style={styles.appContainer}>
 
         <View style={styles.header}>
-          <Text style={styles.headerLogo}>HOTPASS</Text>
+          <Image source={LOGO_ICON} style={styles.headerLogoImage} resizeMode="contain" />
+          <Text style={styles.headerLogoText}>HOTPASS</Text>
         </View>
 
         <View style={styles.screenContent}>
@@ -1899,6 +2025,12 @@ const styles = StyleSheet.create({
   // Auth
   authInner:          { flex: 1, justifyContent: 'center', paddingHorizontal: 32 },
   logo:               { fontSize: 40, fontWeight: '900', color: '#CB2027', letterSpacing: 6, marginBottom: 2 },
+  logoImage:          { width: 120, height: 120, alignSelf: 'center', marginBottom: 4 },
+  logoText:           { fontSize: 36, fontWeight: '900', color: '#CB2027', letterSpacing: 6, textAlign: 'center', marginBottom: 4 },
+  headerLogoImage:    { width: 32, height: 32 },
+  headerLogoText:     { color: '#CB2027', fontSize: 16, fontWeight: '900', letterSpacing: 3, marginLeft: 8 },
+  onboardingLogoImage:{ width: 120, height: 120, alignSelf: 'center', marginBottom: 4 },
+  onboardingLogoText: { fontSize: 36, fontWeight: '900', color: '#CB2027', letterSpacing: 6, marginBottom: 12 },
   tagline:            { fontSize: 13, color: '#444', marginBottom: 52, letterSpacing: 3, textTransform: 'uppercase' },
   input:              {
     backgroundColor: '#0f0f0f', borderWidth: 1, borderColor: '#222',
@@ -1906,10 +2038,27 @@ const styles = StyleSheet.create({
     fontSize: 15, marginBottom: 10,
   },
   button:             {
-    backgroundColor: '#CB2027', borderRadius: 2, paddingVertical: 16,
-    alignItems: 'center', marginTop: 8, marginBottom: 16, marginHorizontal: 20,
+    backgroundColor: '#CB2027',
+    borderRadius: 2,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 16,
+    marginHorizontal: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#e8353c',       // lighter top edge — simulates light hitting top
+    borderBottomWidth: 2,
+    borderBottomColor: '#8a0f14',    // darker bottom edge — depth/shadow
+    borderLeftWidth: 1,
+    borderLeftColor: '#b51c22',
+    borderRightWidth: 1,
+    borderRightColor: '#b51c22',
+    shadowColor: '#CB2027',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
   },
-  buttonText:         { color: '#000', fontWeight: '900', fontSize: 13, letterSpacing: 3 },
+  buttonText:         { color: '#000', fontWeight: '900', fontSize: 13, letterSpacing: 3, textShadowColor: 'rgba(0,0,0,0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 },
   hint:               { color: '#2a2a2a', fontSize: 12, textAlign: 'center' },
   authError:          { color: '#CB2027', fontSize: 12, marginBottom: 10, textAlign: 'center', letterSpacing: 0.5 },
 
@@ -1961,10 +2110,10 @@ const styles = StyleSheet.create({
   captureDimRow:      { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginBottom: 20 },
   captureDimPill:     { borderWidth: 1, borderColor: '#1a1a1a', borderRadius: 2, paddingHorizontal: 8, paddingVertical: 3 },
   captureDimText:     { color: '#2a2a2a', fontSize: 9, letterSpacing: 2, fontWeight: '700' },
-  captureBtn:         { width: 68, height: 68, borderRadius: 34, borderWidth: 2, borderColor: '#333', justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
-  captureBtnInner:    { width: 54, height: 54, borderRadius: 27, justifyContent: 'center', alignItems: 'center' },
-  captureBtnRing:     { position: 'absolute', width: 54, height: 54, borderRadius: 27, borderWidth: 1, borderColor: '#CB2027' },
-  captureBtnCore:     { width: 42, height: 42, borderRadius: 21, backgroundColor: '#CB2027' },
+  captureBtn:         { width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: '#2a2a2a', justifyContent: 'center', alignItems: 'center', marginBottom: 10, backgroundColor: '#0a0a0a', shadowColor: '#CB2027', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10 },
+  captureBtnInner:    { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center' },
+  captureBtnRing:     { position: 'absolute', width: 56, height: 56, borderRadius: 28, borderWidth: 1, borderColor: '#CB2027', opacity: 0.6 },
+  captureBtnCore:     { width: 44, height: 44, borderRadius: 22, backgroundColor: '#CB2027', borderTopWidth: 1, borderTopColor: '#e8353c', borderBottomWidth: 2, borderBottomColor: '#8a0f14' },
   captureHint:        { color: '#222', fontSize: 9, letterSpacing: 3 },
 
   // Processing screen
@@ -2092,8 +2241,8 @@ const styles = StyleSheet.create({
   selectorBlock:      { marginBottom: 20 },
   selectorLabel:      { color: '#626362', fontSize: 11, letterSpacing: 2, marginBottom: 10 },
   selectorRow:        { flexDirection: 'row', gap: 8 },
-  chip:               { borderWidth: 1, borderColor: '#2a2a2a', borderRadius: 4, paddingHorizontal: 14, paddingVertical: 8 },
-  chipActive:         { borderColor: '#CB2027', backgroundColor: '#1a0000' },
+  chip:               { borderTopWidth: 1, borderTopColor: '#2a2a2a', borderBottomWidth: 2, borderBottomColor: '#111', borderLeftWidth: 1, borderLeftColor: '#1e1e1e', borderRightWidth: 1, borderRightColor: '#1e1e1e', borderRadius: 2, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: '#0d0d0d' },
+  chipActive:         { borderTopColor: '#CB2027', borderBottomColor: '#8a0f14', borderLeftColor: '#b51c22', borderRightColor: '#b51c22', backgroundColor: '#0d0000' },
   chipText:           { color: '#626362', fontSize: 13, fontWeight: '600' },
   chipTextActive:     { color: '#CB2027' },
   settingsCard:       { backgroundColor: '#111', borderRadius: 8, padding: 20, marginTop: 8 },
@@ -2149,9 +2298,33 @@ const styles = StyleSheet.create({
   commentSendBtn:       { paddingHorizontal: 8 },
   commentSendText:      { color: '#333', fontSize: 12, fontWeight: '900', letterSpacing: 1 },
 
+  // Save / action row
+  actionRow:          { flexDirection: 'row', marginHorizontal: 20, marginBottom: 16, borderWidth: 1, borderColor: '#1a1a1a', borderRadius: 2, overflow: 'hidden' },
+  actionRowBtn:       { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
+  actionRowIcon:      { color: '#626362', fontSize: 14 },
+  actionRowText:      { color: '#626362', fontSize: 11, fontWeight: '800', letterSpacing: 2 },
+  actionRowDivider:   { width: 1, backgroundColor: '#1a1a1a' },
+  savedToast:         { marginHorizontal: 20, marginBottom: 8, backgroundColor: '#051005', borderWidth: 1, borderColor: '#4CAF50', borderRadius: 2, paddingVertical: 10, alignItems: 'center' },
+  savedToastText:     { color: '#4CAF50', fontSize: 11, fontWeight: '800', letterSpacing: 2 },
+
   // Post Weld
-  buttonOutline:        { borderWidth: 1, borderColor: '#333', borderRadius: 2, paddingVertical: 14, alignItems: 'center', marginHorizontal: 20, marginBottom: 16 },
-  buttonOutlineText:    { color: '#444', fontWeight: '800', fontSize: 13, letterSpacing: 3 },
+  buttonOutline:        {
+    borderRadius: 2,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#2a2a2a',
+    borderBottomWidth: 2,
+    borderBottomColor: '#111',
+    borderLeftWidth: 1,
+    borderLeftColor: '#1e1e1e',
+    borderRightWidth: 1,
+    borderRightColor: '#1e1e1e',
+    backgroundColor: '#0d0d0d',
+  },
+  buttonOutlineText:    { color: '#555', fontWeight: '800', fontSize: 13, letterSpacing: 3 },
   postPreviewCard:      { flexDirection: 'row', backgroundColor: '#0d0d0d', borderWidth: 1, borderColor: '#1a1a1a', borderRadius: 4, overflow: 'hidden', marginBottom: 4 },
   postPreviewLeft:      { width: 90 },
   postPreviewImageBox:  { width: 90, height: 90, backgroundColor: '#111', justifyContent: 'center', alignItems: 'center' },
@@ -2269,9 +2442,9 @@ const styles = StyleSheet.create({
   welderInfo:         { flex: 1, marginLeft: 10 },
   welderName:         { color: '#fff', fontSize: 13, fontWeight: '700' },
   welderMeta:         { color: '#626362', fontSize: 12 },
-  followBtn:          { borderWidth: 1, borderColor: '#626362', borderRadius: 4, paddingHorizontal: 12, paddingVertical: 6 },
-  followBtnActive:    { borderColor: '#CB2027', backgroundColor: '#1a0000' },
-  followBtnText:      { color: '#626362', fontSize: 12, fontWeight: '700' },
+  followBtn:          { borderTopWidth: 1, borderTopColor: '#2a2a2a', borderBottomWidth: 2, borderBottomColor: '#111', borderLeftWidth: 1, borderLeftColor: '#1e1e1e', borderRightWidth: 1, borderRightColor: '#1e1e1e', borderRadius: 2, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#0d0d0d' },
+  followBtnActive:    { borderTopColor: '#CB2027', borderBottomColor: '#8a0f14', borderLeftColor: '#b51c22', borderRightColor: '#b51c22', backgroundColor: '#0d0000' },
+  followBtnText:      { color: '#444', fontSize: 12, fontWeight: '700', letterSpacing: 1 },
   followBtnTextActive: { color: '#CB2027' },
 
   // Profile
