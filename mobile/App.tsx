@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, Alert,
   StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Platform,
 } from 'react-native';
+import { supabase } from './lib/supabase';
 
 type Screen = 'signin' | 'onboarding' | 'app';
 type Tab = 'analyze' | 'machine' | 'progress' | 'community' | 'profile';
@@ -1765,6 +1766,42 @@ export default function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [tab, setTab] = useState<Tab>('analyze');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+
+  async function handleSignIn() {
+    if (!email || !password) return;
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setAuthError(error.message);
+      } else {
+        setScreen('app');
+      }
+    } catch {
+      setAuthError('Something went wrong. Try again.');
+    }
+    setAuthLoading(false);
+  }
+
+  async function handleSignUp() {
+    if (!email || !password) return;
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        setAuthError(error.message);
+      } else {
+        setScreen('onboarding');
+      }
+    } catch {
+      setAuthError('Something went wrong. Try again.');
+    }
+    setAuthLoading(false);
+  }
 
   if (screen === 'onboarding') {
     return <OnboardingScreen onComplete={() => setScreen('app')} />;
@@ -1775,33 +1812,50 @@ export default function App() {
       <SafeAreaView style={styles.container}>
         <View style={styles.authInner}>
           <Text style={styles.logo}>HOTPASS</Text>
-          <Text style={styles.tagline}>Built for welders.</Text>
+          <Text style={styles.tagline}>BUILT FOR WELDERS.</Text>
 
           <TextInput
             style={styles.input}
             placeholder="Email"
-            placeholderTextColor="#626362"
+            placeholderTextColor="#333"
+            autoCapitalize="none"
+            keyboardType="email-address"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={t => { setEmail(t); setAuthError(''); }}
           />
           <TextInput
             style={styles.input}
             placeholder="Password"
-            placeholderTextColor="#626362"
+            placeholderTextColor="#333"
             secureTextEntry
             value={password}
-            onChangeText={setPassword}
+            onChangeText={t => { setPassword(t); setAuthError(''); }}
           />
 
-          <TouchableOpacity style={styles.button} onPress={() => setScreen('app')}>
-            <Text style={styles.buttonText}>SIGN IN</Text>
+          {authError ? <Text style={styles.authError}>{authError}</Text> : null}
+
+          <TouchableOpacity
+            style={[styles.button, { opacity: authLoading ? 0.6 : 1 }]}
+            onPress={handleSignIn}
+            disabled={authLoading}
+          >
+            {authLoading
+              ? <ActivityIndicator color="#000" />
+              : <Text style={styles.buttonText}>SIGN IN</Text>
+            }
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.buttonOutline} onPress={() => setScreen('onboarding')}>
+          <TouchableOpacity
+            style={[styles.buttonOutline, { opacity: authLoading ? 0.6 : 1 }]}
+            onPress={handleSignUp}
+            disabled={authLoading}
+          >
             <Text style={styles.buttonOutlineText}>CREATE ACCOUNT</Text>
           </TouchableOpacity>
 
-          <Text style={styles.hint}>(tap Sign In to skip onboarding)</Text>
+          <TouchableOpacity onPress={() => setScreen('app')} style={{ alignItems: 'center', marginTop: 8 }}>
+            <Text style={styles.hint}>Skip — preview the app</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -1857,6 +1911,7 @@ const styles = StyleSheet.create({
   },
   buttonText:         { color: '#000', fontWeight: '900', fontSize: 13, letterSpacing: 3 },
   hint:               { color: '#2a2a2a', fontSize: 12, textAlign: 'center' },
+  authError:          { color: '#CB2027', fontSize: 12, marginBottom: 10, textAlign: 'center', letterSpacing: 0.5 },
 
   // App shell
   appContainer:       { flex: 1 },
