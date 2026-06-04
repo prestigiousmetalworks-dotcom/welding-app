@@ -4,8 +4,9 @@ import {
   StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Platform,
 } from 'react-native';
 
-type Screen = 'signin' | 'app';
+type Screen = 'signin' | 'onboarding' | 'app';
 type Tab = 'analyze' | 'machine' | 'progress' | 'community' | 'profile';
+type OnboardingStep = 'welcome' | 'username' | 'processes' | 'follow' | 'done';
 type AnalyzeState = 'capture' | 'processing' | 'results' | 'posting' | 'posted';
 type Visibility = 'public' | 'followers' | 'private';
 
@@ -225,11 +226,7 @@ function AnalyzeScreen() {
           <View style={styles.vfCrosshairH} />
           <View style={styles.vfCrosshairV} />
 
-          {/* Center crosshair label — below the crosshair */}
-          <View style={styles.vfCenter}>
-            <Text style={styles.vfLabel}>TAP TO CAPTURE</Text>
-            <Text style={styles.vfSub}>WELD PHOTO</Text>
-          </View>
+          {/* Intentionally empty — no label in viewfinder */}
 
           {/* Bottom left tag */}
           <View style={styles.vfTag}>
@@ -1127,11 +1124,182 @@ function ChallengeTab() {
   );
 }
 
+const DETAIL_COMMENTS = [
+  { user: 'ironworker_pnw', text: 'Clean tie-ins. What filler you running?', time: '1h ago', likes: 12 },
+  { user: 'fab_king_tx',    text: 'That color is perfect — zero oxidation.',  time: '2h ago', likes: 8  },
+  { user: 'weld_wolf_ohio', text: 'Gas coverage on point. Back purged?',      time: '3h ago', likes: 5  },
+  { user: 'tig_torch_mike', text: 'Bead consistency is insane on this one.',  time: '4h ago', likes: 19 },
+];
+
+const DETAIL_DIMENSIONS = [
+  { label: 'Bead Consistency', score: 94 },
+  { label: 'Penetration',      score: 96 },
+  { label: 'Spatter',          score: 98 },
+  { label: 'Undercut',         score: 91 },
+  { label: 'Overlap',          score: 99 },
+  { label: 'Porosity',         score: 93 },
+  { label: 'Crack Indication', score: 100 },
+  { label: 'Straightness',     score: 88 },
+  { label: 'Starts & Stops',   score: 90 },
+];
+
+function WeldDetailView({ post, onBack, onLike }: {
+  post: typeof FEED_POSTS[0];
+  onBack: () => void;
+  onLike: () => void;
+}) {
+  const [comment, setComment] = useState('');
+  const [comments, setComments] = useState(DETAIL_COMMENTS);
+  const [following, setFollowing] = useState(false);
+
+  function handleComment() {
+    if (!comment.trim()) return;
+    setComments(prev => [{ user: 'your_username', text: comment.trim(), time: 'Just now', likes: 0 }, ...prev]);
+    setComment('');
+  }
+
+  return (
+    <View style={{ flex: 1 }}>
+      {/* Header */}
+      <View style={styles.detailHeader}>
+        <TouchableOpacity onPress={onBack} style={styles.detailBack}>
+          <Text style={styles.backBtnText}>← Feed</Text>
+        </TouchableOpacity>
+        <Text style={styles.detailHeaderTitle}>WELD</Text>
+        <View style={{ width: 48 }} />
+      </View>
+
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100 }}>
+
+        {/* Post header */}
+        <View style={styles.postHeader}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{post.user[0].toUpperCase()}</Text>
+          </View>
+          <View style={styles.postHeaderText}>
+            <Text style={styles.postUser}>{post.user}</Text>
+            <Text style={styles.postTime}>{post.time}</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.followBtn, following && styles.followBtnActive]}
+            onPress={() => setFollowing(v => !v)}
+          >
+            <Text style={[styles.followBtnText, following && styles.followBtnTextActive]}>
+              {following ? 'Following' : 'Follow'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Weld image */}
+        <View style={[styles.postImagePlaceholder, { height: 280 }]}>
+          <Text style={[styles.postImageIcon, { fontSize: 64 }]}>🔥</Text>
+          <View style={styles.postScoreBadge}>
+            <Text style={[styles.postScoreNum, { color: scoreColor(post.score), fontSize: 32 }]}>{post.score}</Text>
+            <Text style={[styles.postGrade, { color: scoreColor(post.score) }]}>{post.grade}</Text>
+          </View>
+          <View style={[styles.processPill, { position: 'absolute', top: 12, left: 12, backgroundColor: '#000' }]}>
+            <Text style={styles.processPillText}>{post.process}</Text>
+          </View>
+        </View>
+
+        {/* Caption + actions */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 14 }}>
+          <Text style={[styles.postUser, { marginBottom: 4 }]}>{post.user} <Text style={styles.postCaption}>{post.caption}</Text></Text>
+          <Text style={[styles.postTime, { marginBottom: 16 }]}>{post.time}</Text>
+
+          <View style={[styles.postActions, { paddingHorizontal: 0, marginBottom: 20 }]}>
+            <TouchableOpacity style={styles.postAction} onPress={onLike}>
+              <Text style={[styles.postActionIcon, post.liked && { color: '#CB2027' }]}>{post.liked ? '♥' : '♡'}</Text>
+              <Text style={[styles.postActionCount, post.liked && { color: '#CB2027' }]}>{post.likes}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.postAction}>
+              <Text style={styles.postActionIcon}>💬</Text>
+              <Text style={styles.postActionCount}>{comments.length}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.postAction}>
+              <Text style={styles.postActionIcon}>↗</Text>
+              <Text style={styles.postActionCount}>Share</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* AI Score Breakdown */}
+        <View style={[styles.section, { paddingTop: 0 }]}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>AI BREAKDOWN</Text>
+            <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>CWI RUBRIC</Text></View>
+          </View>
+          <View style={styles.dimCard}>
+            {DETAIL_DIMENSIONS.map((d, i) => (
+              <View key={i} style={[styles.dimRow, i < DETAIL_DIMENSIONS.length - 1 && styles.dimRowBorder]}>
+                <View style={styles.dimLabelRow}>
+                  <Text style={styles.dimLabel}>{d.label}</Text>
+                  <Text style={[styles.dimScore, { color: scoreColor(d.score) }]}>{d.score}</Text>
+                </View>
+                <View style={styles.barBg}>
+                  <View style={[styles.barFill, { width: `${d.score}%` as any, backgroundColor: scoreColor(d.score) }]} />
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Comments */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>COMMENTS</Text>
+            <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>{comments.length}</Text></View>
+          </View>
+          {comments.map((c, i) => (
+            <View key={i} style={styles.commentRow}>
+              <View style={[styles.avatar, { width: 30, height: 30, borderRadius: 2 }]}>
+                <Text style={[styles.avatarText, { fontSize: 11 }]}>{c.user[0].toUpperCase()}</Text>
+              </View>
+              <View style={styles.commentBody}>
+                <View style={styles.commentBubble}>
+                  <Text style={styles.commentUser}>{c.user}</Text>
+                  <Text style={styles.commentText}>{c.text}</Text>
+                </View>
+                <View style={styles.commentMeta}>
+                  <Text style={styles.commentTime}>{c.time}</Text>
+                  <TouchableOpacity><Text style={styles.commentLike}>♡ {c.likes}</Text></TouchableOpacity>
+                  <TouchableOpacity><Text style={styles.commentReply}>Reply</Text></TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+
+      </ScrollView>
+
+      {/* Comment input — fixed at bottom */}
+      <View style={styles.commentInputBar}>
+        <View style={[styles.avatar, { width: 30, height: 30, borderRadius: 2 }]}>
+          <Text style={[styles.avatarText, { fontSize: 11 }]}>Y</Text>
+        </View>
+        <TextInput
+          style={styles.commentInput}
+          placeholder="Add a comment..."
+          placeholderTextColor="#333"
+          value={comment}
+          onChangeText={setComment}
+          onSubmitEditing={handleComment}
+          returnKeyType="send"
+        />
+        <TouchableOpacity onPress={handleComment} style={styles.commentSendBtn}>
+          <Text style={[styles.commentSendText, comment.trim() && { color: '#CB2027' }]}>POST</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 function CommunityScreen() {
   const [tab, setTab] = useState<CommunityTab>('feed');
   const [posts, setPosts] = useState(FEED_POSTS);
   const [welders, setWelders] = useState(DISCOVER_WELDERS);
   const [filterProcess, setFilterProcess] = useState<string | null>(null);
+  const [selectedPost, setSelectedPost] = useState<typeof FEED_POSTS[0] | null>(null);
 
   function toggleLike(id: string) {
     setPosts(prev => prev.map(p =>
@@ -1148,6 +1316,10 @@ function CommunityScreen() {
   const filteredWelders = filterProcess
     ? welders.filter(w => w.process === filterProcess)
     : welders;
+
+  if (selectedPost) {
+    return <WeldDetailView post={selectedPost} onBack={() => setSelectedPost(null)} onLike={() => toggleLike(selectedPost.id)} />;
+  }
 
   return (
     <View style={{ flex: 1 }}>
@@ -1166,7 +1338,7 @@ function CommunityScreen() {
       {tab === 'feed' && (
         <ScrollView style={{ flex: 1 }}>
           {posts.map(p => (
-            <View key={p.id} style={styles.postCard}>
+            <TouchableOpacity key={p.id} style={styles.postCard} activeOpacity={0.9} onPress={() => setSelectedPost(p)}>
               <View style={styles.postHeader}>
                 <View style={styles.avatar}>
                   <Text style={styles.avatarText}>{p.user[0].toUpperCase()}</Text>
@@ -1188,11 +1360,11 @@ function CommunityScreen() {
               </View>
               <Text style={styles.postCaption}>{p.caption}</Text>
               <View style={styles.postActions}>
-                <TouchableOpacity style={styles.postAction} onPress={() => toggleLike(p.id)}>
+                <TouchableOpacity style={styles.postAction} onPress={e => { e.stopPropagation?.(); toggleLike(p.id); }}>
                   <Text style={[styles.postActionIcon, p.liked && { color: '#CB2027' }]}>{p.liked ? '♥' : '♡'}</Text>
                   <Text style={[styles.postActionCount, p.liked && { color: '#CB2027' }]}>{p.likes}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.postAction}>
+                <TouchableOpacity style={styles.postAction} onPress={() => setSelectedPost(p)}>
                   <Text style={styles.postActionIcon}>💬</Text>
                   <Text style={styles.postActionCount}>{p.comments}</Text>
                 </TouchableOpacity>
@@ -1201,7 +1373,7 @@ function CommunityScreen() {
                   <Text style={styles.postActionCount}>Share</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
         </ScrollView>
       )}
@@ -1362,11 +1534,241 @@ function ProfileScreen() {
   );
 }
 
+const SUGGESTED_WELDERS = [
+  { user: 'pipe_dawg_77',   process: 'TIG',   avg: 91, welds: 48 },
+  { user: 'ironworker_pnw', process: 'Stick', avg: 85, welds: 32 },
+  { user: 'stainless_sal',  process: 'TIG',   avg: 94, welds: 61 },
+  { user: 'fab_king_tx',    process: 'MIG',   avg: 79, welds: 27 },
+  { user: 'weld_wolf_ohio', process: 'MIG',   avg: 83, welds: 19 },
+  { user: 'fcaw_frank',     process: 'FCAW',  avg: 76, welds: 14 },
+];
+
+function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
+  const [step, setStep]             = useState<OnboardingStep>('welcome');
+  const [username, setUsername]     = useState('');
+  const [processes, setProcesses]   = useState<string[]>([]);
+  const [followed, setFollowed]     = useState<string[]>([]);
+
+  function toggleProcess(p: string) {
+    setProcesses(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
+  }
+
+  function toggleFollow(u: string) {
+    setFollowed(prev => prev.includes(u) ? prev.filter(x => x !== u) : [...prev, u]);
+  }
+
+  // Step indicator
+  const steps: OnboardingStep[] = ['welcome', 'username', 'processes', 'follow', 'done'];
+  const stepIndex = steps.indexOf(step);
+
+  function next() {
+    const nextStep = steps[stepIndex + 1];
+    if (nextStep) setStep(nextStep);
+    else onComplete();
+  }
+
+  if (step === 'welcome') {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.onboardingScreen}>
+          <View style={styles.onboardingHero}>
+            <View style={styles.onboardingGlow} />
+            <Text style={styles.onboardingLogo}>HOTPASS</Text>
+            <Text style={styles.onboardingTagline}>THE PLATFORM BUILT{'\n'}FOR WELDERS.</Text>
+          </View>
+          <View style={styles.onboardingContent}>
+            <View style={styles.onboardingFeatureList}>
+              {[
+                { icon: '🔍', title: 'AI Weld Analysis',      desc: 'Photo your weld. Get a score, defect callouts, and tips.' },
+                { icon: '⚙️', title: 'Machine Settings',       desc: 'Voltage, wire speed, gas mix — dialed in for your setup.' },
+                { icon: '📈', title: 'Track Your Progress',    desc: 'Score history, badges, and process breakdowns.' },
+                { icon: '🔥', title: 'Community of Welders',   desc: 'Zero tolerance. Welders only. No beginners.' },
+              ].map((f, i) => (
+                <View key={i} style={styles.onboardingFeatureRow}>
+                  <Text style={styles.onboardingFeatureIcon}>{f.icon}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.onboardingFeatureTitle}>{f.title}</Text>
+                    <Text style={styles.onboardingFeatureDesc}>{f.desc}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity style={[styles.button, { marginHorizontal: 0 }]} onPress={next}>
+              <Text style={styles.buttonText}>GET STARTED</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (step === 'username') {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.onboardingScreen}>
+          <OnboardingProgress current={stepIndex} total={steps.length - 1} />
+          <View style={styles.onboardingContent}>
+            <Text style={styles.onboardingStepTitle}>CHOOSE YOUR{'\n'}HANDLE</Text>
+            <Text style={styles.onboardingStepSub}>This is how other welders will know you.</Text>
+            <TextInput
+              style={[styles.input, { fontSize: 20, fontWeight: '800', letterSpacing: 2, textAlign: 'center' }]}
+              placeholder="your_username"
+              placeholderTextColor="#333"
+              autoCapitalize="none"
+              value={username}
+              onChangeText={setUsername}
+            />
+            <Text style={styles.onboardingHint}>Letters, numbers, and underscores only.</Text>
+            <TouchableOpacity
+              style={[styles.button, { marginHorizontal: 0, opacity: username.length < 3 ? 0.4 : 1 }]}
+              onPress={next}
+              disabled={username.length < 3}
+            >
+              <Text style={styles.buttonText}>CONTINUE</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={next} style={{ alignItems: 'center', marginTop: 8 }}>
+              <Text style={styles.onboardingSkip}>Skip for now</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (step === 'processes') {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.onboardingScreen}>
+          <OnboardingProgress current={stepIndex} total={steps.length - 1} />
+          <View style={styles.onboardingContent}>
+            <Text style={styles.onboardingStepTitle}>WHAT DO{'\n'}YOU WELD?</Text>
+            <Text style={styles.onboardingStepSub}>Select all processes you work with.</Text>
+            <View style={styles.processPickerGrid}>
+              {[
+                { code: 'MIG',       label: 'MIG',       sub: 'GMAW' },
+                { code: 'TIG',       label: 'TIG',       sub: 'GTAW' },
+                { code: 'Stick',     label: 'STICK',     sub: 'SMAW' },
+                { code: 'Flux-Core', label: 'FLUX-CORE', sub: 'FCAW' },
+              ].map(p => {
+                const selected = processes.includes(p.code);
+                return (
+                  <TouchableOpacity
+                    key={p.code}
+                    style={[styles.processPickerCard, selected && styles.processPickerCardActive]}
+                    onPress={() => toggleProcess(p.code)}
+                  >
+                    <Text style={[styles.processPickerLabel, selected && { color: '#CB2027' }]}>{p.label}</Text>
+                    <Text style={styles.processPickerSub}>{p.sub}</Text>
+                    {selected && <View style={styles.processPickerCheck}><Text style={styles.processPickerCheckText}>✓</Text></View>}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <TouchableOpacity
+              style={[styles.button, { marginHorizontal: 0, opacity: processes.length === 0 ? 0.4 : 1 }]}
+              onPress={next}
+              disabled={processes.length === 0}
+            >
+              <Text style={styles.buttonText}>CONTINUE</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={next} style={{ alignItems: 'center', marginTop: 8 }}>
+              <Text style={styles.onboardingSkip}>Skip for now</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (step === 'follow') {
+    const filtered = processes.length > 0
+      ? SUGGESTED_WELDERS.filter(w => processes.includes(w.process))
+      : SUGGESTED_WELDERS;
+    const suggestions = filtered.length >= 3 ? filtered : SUGGESTED_WELDERS;
+
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.onboardingScreen}>
+          <OnboardingProgress current={stepIndex} total={steps.length - 1} />
+          <View style={styles.onboardingContent}>
+            <Text style={styles.onboardingStepTitle}>FOLLOW SOME{'\n'}WELDERS</Text>
+            <Text style={styles.onboardingStepSub}>
+              {processes.length > 0 ? `Top ${processes.join(' & ')} welders on HotPass.` : 'Top welders on HotPass.'}
+            </Text>
+            <View style={{ width: '100%', marginBottom: 24 }}>
+              {suggestions.slice(0, 5).map((w, i) => {
+                const isFollowed = followed.includes(w.user);
+                return (
+                  <View key={i} style={styles.welderRow}>
+                    <View style={styles.avatar}>
+                      <Text style={styles.avatarText}>{w.user[0].toUpperCase()}</Text>
+                    </View>
+                    <View style={styles.welderInfo}>
+                      <Text style={styles.welderName}>{w.user}</Text>
+                      <Text style={styles.welderMeta}>{w.process} · Avg {w.avg} · {w.welds} welds</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.followBtn, isFollowed && styles.followBtnActive]}
+                      onPress={() => toggleFollow(w.user)}
+                    >
+                      <Text style={[styles.followBtnText, isFollowed && styles.followBtnTextActive]}>
+                        {isFollowed ? 'Following' : 'Follow'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+            <TouchableOpacity style={[styles.button, { marginHorizontal: 0 }]} onPress={next}>
+              <Text style={styles.buttonText}>
+                {followed.length > 0 ? `FOLLOW ${followed.length} & CONTINUE` : 'SKIP'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Done
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={[styles.onboardingScreen, { justifyContent: 'center' }]}>
+        <View style={styles.onboardingContent}>
+          <View style={styles.onboardingDoneGlow} />
+          <Text style={{ fontSize: 72, textAlign: 'center', marginBottom: 24 }}>🔥</Text>
+          <Text style={styles.onboardingStepTitle}>YOU'RE IN.</Text>
+          <Text style={[styles.onboardingStepSub, { textAlign: 'center' }]}>
+            {username ? `Welcome, ${username}.` : 'Welcome to HotPass.'}{'\n'}Start by analyzing your first weld.
+          </Text>
+          <TouchableOpacity style={[styles.button, { marginHorizontal: 0, marginTop: 32 }]} onPress={onComplete}>
+            <Text style={styles.buttonText}>ANALYZE FIRST WELD</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function OnboardingProgress({ current, total }: { current: number; total: number }) {
+  return (
+    <View style={styles.onboardingProgressRow}>
+      {Array.from({ length: total }).map((_, i) => (
+        <View key={i} style={[styles.onboardingProgressDot, i < current && styles.onboardingProgressDotDone, i === current && styles.onboardingProgressDotActive]} />
+      ))}
+    </View>
+  );
+}
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [tab, setTab] = useState<Tab>('analyze');
+
+  if (screen === 'onboarding') {
+    return <OnboardingScreen onComplete={() => setScreen('app')} />;
+  }
 
   if (screen === 'signin') {
     return (
@@ -1395,7 +1797,11 @@ export default function App() {
             <Text style={styles.buttonText}>SIGN IN</Text>
           </TouchableOpacity>
 
-          <Text style={styles.hint}>(tap Sign In to preview the app)</Text>
+          <TouchableOpacity style={styles.buttonOutline} onPress={() => setScreen('onboarding')}>
+            <Text style={styles.buttonOutlineText}>CREATE ACCOUNT</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.hint}>(tap Sign In to skip onboarding)</Text>
         </View>
       </SafeAreaView>
     );
@@ -1640,6 +2046,53 @@ const styles = StyleSheet.create({
   paramBox:           { width: '47%', backgroundColor: '#000', borderRadius: 6, padding: 14, alignItems: 'center' },
   paramValue:         { color: '#fff', fontSize: 15, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
   paramLabel:         { color: '#626362', fontSize: 11, letterSpacing: 1 },
+
+  // Onboarding
+  onboardingScreen:       { flex: 1 },
+  onboardingHero:         { flex: 1, justifyContent: 'flex-end', paddingHorizontal: 28, paddingBottom: 32, position: 'relative' },
+  onboardingGlow:         { position: 'absolute', top: 60, left: '50%', marginLeft: -100, width: 200, height: 200, borderRadius: 100, backgroundColor: '#CB2027', opacity: 0.08 },
+  onboardingLogo:         { fontSize: 42, fontWeight: '900', color: '#CB2027', letterSpacing: 6, marginBottom: 12 },
+  onboardingTagline:      { fontSize: 22, fontWeight: '900', color: '#fff', lineHeight: 28, letterSpacing: 2 },
+  onboardingContent:      { paddingHorizontal: 28, paddingVertical: 24, alignItems: 'stretch' },
+  onboardingFeatureList:  { marginBottom: 28 },
+  onboardingFeatureRow:   { flexDirection: 'row', alignItems: 'flex-start', gap: 14, marginBottom: 18 },
+  onboardingFeatureIcon:  { fontSize: 22, width: 30 },
+  onboardingFeatureTitle: { color: '#fff', fontSize: 13, fontWeight: '800', letterSpacing: 1, marginBottom: 2 },
+  onboardingFeatureDesc:  { color: '#444', fontSize: 12, lineHeight: 17 },
+  onboardingStepTitle:    { fontSize: 28, fontWeight: '900', color: '#fff', letterSpacing: 2, lineHeight: 34, marginBottom: 8 },
+  onboardingStepSub:      { color: '#444', fontSize: 13, marginBottom: 28, lineHeight: 18 },
+  onboardingHint:         { color: '#333', fontSize: 11, letterSpacing: 1, textAlign: 'center', marginBottom: 20, marginTop: -8 },
+  onboardingSkip:         { color: '#333', fontSize: 12, letterSpacing: 1 },
+  onboardingProgressRow:  { flexDirection: 'row', gap: 6, paddingHorizontal: 28, paddingTop: 20, paddingBottom: 8 },
+  onboardingProgressDot:  { flex: 1, height: 2, backgroundColor: '#1a1a1a', borderRadius: 1 },
+  onboardingProgressDotDone:   { backgroundColor: '#4CAF50' },
+  onboardingProgressDotActive: { backgroundColor: '#CB2027' },
+  onboardingDoneGlow:     { position: 'absolute', top: -40, alignSelf: 'center', width: 200, height: 200, borderRadius: 100, backgroundColor: '#CB2027', opacity: 0.06 },
+  processPickerGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28 },
+  processPickerCard:      { width: '47%', backgroundColor: '#0d0d0d', borderWidth: 1, borderColor: '#1a1a1a', borderRadius: 4, padding: 20, alignItems: 'center', position: 'relative' },
+  processPickerCardActive:{ borderColor: '#CB2027', backgroundColor: '#0d0000' },
+  processPickerLabel:     { color: '#fff', fontSize: 16, fontWeight: '900', letterSpacing: 2, marginBottom: 4 },
+  processPickerSub:       { color: '#333', fontSize: 10, letterSpacing: 2 },
+  processPickerCheck:     { position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: 9, backgroundColor: '#CB2027', justifyContent: 'center', alignItems: 'center' },
+  processPickerCheckText: { color: '#000', fontSize: 10, fontWeight: '900' },
+
+  // Weld Detail
+  detailHeader:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#111' },
+  detailBack:           { width: 48 },
+  detailHeaderTitle:    { color: '#fff', fontSize: 12, fontWeight: '900', letterSpacing: 3 },
+  commentRow:           { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  commentBody:          { flex: 1 },
+  commentBubble:        { backgroundColor: '#0d0d0d', borderWidth: 1, borderColor: '#1a1a1a', borderRadius: 4, padding: 12, marginBottom: 6 },
+  commentUser:          { color: '#CB2027', fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 4 },
+  commentText:          { color: '#888', fontSize: 13, lineHeight: 18 },
+  commentMeta:          { flexDirection: 'row', gap: 16, paddingLeft: 4 },
+  commentTime:          { color: '#333', fontSize: 11 },
+  commentLike:          { color: '#333', fontSize: 11 },
+  commentReply:         { color: '#444', fontSize: 11, fontWeight: '700' },
+  commentInputBar:      { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, backgroundColor: '#080808', borderTopWidth: 1, borderTopColor: '#111' },
+  commentInput:         { flex: 1, backgroundColor: '#0d0d0d', borderWidth: 1, borderColor: '#1a1a1a', borderRadius: 2, color: '#fff', paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
+  commentSendBtn:       { paddingHorizontal: 8 },
+  commentSendText:      { color: '#333', fontSize: 12, fontWeight: '900', letterSpacing: 1 },
 
   // Post Weld
   buttonOutline:        { borderWidth: 1, borderColor: '#333', borderRadius: 2, paddingVertical: 14, alignItems: 'center', marginHorizontal: 20, marginBottom: 16 },
