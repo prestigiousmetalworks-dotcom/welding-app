@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "DimeVision",
+    "slug": "dimevision",
+    "scheme": "dimevision",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
