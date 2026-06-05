@@ -1408,43 +1408,103 @@ function CommunityScreen() {
 
       {tab === 'feed' && (
         <ScrollView style={{ flex: 1 }}>
-          {posts.map(p => (
-            <TouchableOpacity key={p.id} style={styles.postCard} activeOpacity={0.9} onPress={() => setSelectedPost(p)}>
-              <View style={styles.postHeader}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{p.user[0].toUpperCase()}</Text>
-                </View>
-                <View style={styles.postHeaderText}>
-                  <Text style={styles.postUser}>{p.user}</Text>
-                  <Text style={styles.postTime}>{p.time}</Text>
-                </View>
-                <View style={[styles.processPill, { borderColor: '#CB2027' }]}>
-                  <Text style={styles.processPillText}>{p.process}</Text>
+
+          {/* Stories row */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.storiesRow} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 12, gap: 16 }}>
+            {/* Your story */}
+            <TouchableOpacity style={styles.storyItem}>
+              <View style={styles.storyAvatarWrap}>
+                <View style={[styles.storyAvatar, { backgroundColor: '#1a1a1a', borderColor: '#333', borderWidth: 1 }]}>
+                  <Text style={{ color: '#CB2027', fontSize: 20, fontWeight: '900' }}>+</Text>
                 </View>
               </View>
-              <View style={styles.postImagePlaceholder}>
-                <Text style={styles.postImageIcon}>🔥</Text>
-                <View style={styles.postScoreBadge}>
-                  <Text style={[styles.postScoreNum, { color: scoreColor(p.score) }]}>{p.score}</Text>
-                  <Text style={[styles.postGrade, { color: scoreColor(p.score) }]}>{p.grade}</Text>
-                </View>
-              </View>
-              <Text style={styles.postCaption}>{p.caption}</Text>
-              <View style={styles.postActions}>
-                <TouchableOpacity style={styles.postAction} onPress={e => { e.stopPropagation?.(); toggleLike(p.id); }}>
-                  <Text style={[styles.postActionIcon, p.liked && { color: '#CB2027' }]}>{p.liked ? '♥' : '♡'}</Text>
-                  <Text style={[styles.postActionCount, p.liked && { color: '#CB2027' }]}>{p.likes}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.postAction} onPress={() => setSelectedPost(p)}>
-                  <Text style={styles.postActionIcon}>💬</Text>
-                  <Text style={styles.postActionCount}>{p.comments}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.postAction}>
-                  <Text style={styles.postActionIcon}>↗</Text>
-                  <Text style={styles.postActionCount}>Share</Text>
-                </TouchableOpacity>
-              </View>
+              <Text style={styles.storyLabel}>Your Story</Text>
             </TouchableOpacity>
+            {DISCOVER_WELDERS.slice(0, 6).map((w, i) => (
+              <TouchableOpacity key={i} style={styles.storyItem}>
+                <View style={styles.storyAvatarWrap}>
+                  <View style={styles.storyAvatar}>
+                    <Text style={styles.storyAvatarText}>{w.user[0].toUpperCase()}</Text>
+                  </View>
+                </View>
+                <Text style={styles.storyLabel}>{w.user.split('_')[0]}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <View style={styles.storiesDivider} />
+
+          {/* Posts */}
+          {posts.map(p => (
+            <View key={p.id} style={styles.igPost}>
+
+              {/* Post header */}
+              <View style={styles.igPostHeader}>
+                <View style={styles.igAvatar}>
+                  <Text style={styles.igAvatarText}>{p.user[0].toUpperCase()}</Text>
+                </View>
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.igUsername}>{p.user}</Text>
+                  <Text style={styles.igSubline}>{p.process} · {p.time}</Text>
+                </View>
+                <TouchableOpacity style={styles.igMoreBtn}>
+                  <Text style={styles.igMoreText}>···</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Full-width weld image */}
+              <TouchableOpacity activeOpacity={0.95} onPress={() => setSelectedPost(p)}>
+                <View style={styles.igImage}>
+                  <Text style={styles.igImageIcon}>🔥</Text>
+                  {/* Score overlay — bottom left */}
+                  <View style={styles.igScoreOverlay}>
+                    <Text style={[styles.igScoreNum, { color: scoreColor(p.score) }]}>{p.score}</Text>
+                    <Text style={[styles.igScoreGrade, { color: scoreColor(p.score) }]}>{p.grade}</Text>
+                    <Text style={styles.igScoreLabel}>AI SCORE</Text>
+                  </View>
+                  {/* Process tag — top right */}
+                  <View style={styles.igProcessTag}>
+                    <Text style={styles.igProcessTagText}>{p.process}</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              {/* Action bar */}
+              <View style={styles.igActions}>
+                <View style={styles.igActionsLeft}>
+                  <TouchableOpacity style={styles.igActionBtn} onPress={() => toggleLike(p.id)}>
+                    <Text style={[styles.igActionIcon, p.liked && { color: '#CB2027' }]}>
+                      {p.liked ? '♥' : '♡'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.igActionBtn} onPress={() => setSelectedPost(p)}>
+                    <Text style={styles.igActionIcon}>💬</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.igActionBtn}>
+                    <Text style={styles.igActionIcon}>↗</Text>
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity>
+                  <Text style={styles.igActionIcon}>🔖</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Likes */}
+              <Text style={styles.igLikeCount}>{p.likes.toLocaleString()} likes</Text>
+
+              {/* Caption */}
+              <Text style={styles.igCaption}>
+                <Text style={styles.igCaptionUser}>{p.user} </Text>
+                {p.caption}
+              </Text>
+
+              {/* View comments */}
+              <TouchableOpacity onPress={() => setSelectedPost(p)}>
+                <Text style={styles.igViewComments}>View all {p.comments} comments</Text>
+              </TouchableOpacity>
+
+              <Text style={styles.igTimestamp}>{p.time}</Text>
+            </View>
           ))}
         </ScrollView>
       )}
@@ -2397,6 +2457,42 @@ const styles = StyleSheet.create({
   badgeName:          { color: '#fff', fontSize: 13, fontWeight: '800', marginBottom: 4, textAlign: 'center' },
   badgeNameLocked:    { color: '#626362' },
   badgeDesc:          { color: '#626362', fontSize: 11, textAlign: 'center', lineHeight: 15 },
+
+  // Stories
+  storiesRow:           { backgroundColor: '#080808' },
+  storiesDivider:       { height: 1, backgroundColor: '#111' },
+  storyItem:            { alignItems: 'center', width: 64 },
+  storyAvatarWrap:      { width: 60, height: 60, borderRadius: 30, padding: 2, background: 'transparent', borderWidth: 2, borderColor: '#CB2027', borderRadius: 30, justifyContent: 'center', alignItems: 'center', marginBottom: 5 },
+  storyAvatar:          { width: 52, height: 52, borderRadius: 26, backgroundColor: '#CB2027', justifyContent: 'center', alignItems: 'center' },
+  storyAvatarText:      { color: '#000', fontWeight: '900', fontSize: 18 },
+  storyLabel:           { color: '#555', fontSize: 10, letterSpacing: 0.5, maxWidth: 60, textAlign: 'center' },
+
+  // Instagram-style posts
+  igPost:               { marginBottom: 2, borderBottomWidth: 1, borderBottomColor: '#0f0f0f' },
+  igPostHeader:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10 },
+  igAvatar:             { width: 38, height: 38, borderRadius: 19, backgroundColor: '#CB2027', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#e8353c' },
+  igAvatarText:         { color: '#000', fontWeight: '900', fontSize: 15 },
+  igUsername:           { color: '#fff', fontSize: 13, fontWeight: '800' },
+  igSubline:            { color: '#444', fontSize: 11, marginTop: 1 },
+  igMoreBtn:            { paddingHorizontal: 8 },
+  igMoreText:           { color: '#555', fontSize: 18, letterSpacing: 2 },
+  igImage:              { width: '100%', aspectRatio: 1, backgroundColor: '#0d0d0d', justifyContent: 'center', alignItems: 'center', position: 'relative' },
+  igImageIcon:          { fontSize: 52, opacity: 0.2 },
+  igScoreOverlay:       { position: 'absolute', bottom: 12, left: 12, backgroundColor: 'rgba(0,0,0,0.85)', borderRadius: 4, padding: 10, borderWidth: 1, borderColor: '#1a1a1a' },
+  igScoreNum:           { fontSize: 32, fontWeight: '900', letterSpacing: -1, lineHeight: 34 },
+  igScoreGrade:         { fontSize: 16, fontWeight: '900', letterSpacing: 2 },
+  igScoreLabel:         { color: '#444', fontSize: 8, letterSpacing: 3, marginTop: 2 },
+  igProcessTag:         { position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.85)', borderWidth: 1, borderColor: '#CB2027', borderRadius: 2, paddingHorizontal: 8, paddingVertical: 4 },
+  igProcessTagText:     { color: '#CB2027', fontSize: 10, fontWeight: '800', letterSpacing: 2 },
+  igActions:            { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6 },
+  igActionsLeft:        { flexDirection: 'row', gap: 16 },
+  igActionBtn:          { padding: 2 },
+  igActionIcon:         { fontSize: 24, color: '#888' },
+  igLikeCount:          { paddingHorizontal: 14, fontSize: 13, fontWeight: '800', color: '#fff', marginBottom: 4 },
+  igCaption:            { paddingHorizontal: 14, fontSize: 13, color: '#888', marginBottom: 4, lineHeight: 18 },
+  igCaptionUser:        { color: '#fff', fontWeight: '800' },
+  igViewComments:       { paddingHorizontal: 14, fontSize: 12, color: '#444', marginBottom: 4 },
+  igTimestamp:          { paddingHorizontal: 14, fontSize: 10, color: '#333', letterSpacing: 1, marginBottom: 12 },
 
   // Community sub-tabs
   subTabBar:          { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#111', backgroundColor: '#060606' },
