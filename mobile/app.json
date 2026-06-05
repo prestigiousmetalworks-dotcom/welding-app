@@ -1,26 +1,35 @@
 {
   "expo": {
-    "name": "DimeVision",
-    "slug": "dimevision",
-    "scheme": "dimevision",
+    "name": "HotPass",
+    "slug": "hotpass",
+    "scheme": "hotpass",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "icon": "./assets/1c666a7c-b0e3-4786-b491-f0a487c5a705.png",
+    "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hotpass.app"
     },
     "android": {
+      "package": "com.hotpass.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#080808",
+        "foregroundImage": "./assets/1c666a7c-b0e3-4786-b491-f0a487c5a705.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/1c666a7c-b0e3-4786-b491-f0a487c5a705.png",
+      "bundler": "metro",
+      "output": "static",
+      "name": "HotPass",
+      "shortName": "HotPass",
+      "description": "AI-powered weld analysis for professional welders",
+      "themeColor": "#CB2027",
+      "backgroundColor": "#080808",
+      "display": "standalone",
+      "orientation": "portrait"
     }
   }
 }
