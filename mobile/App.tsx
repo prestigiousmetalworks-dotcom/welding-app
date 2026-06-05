@@ -1892,6 +1892,55 @@ function OnboardingProgress({ current, total }: { current: number; total: number
   );
 }
 
+const DEMO_NOTIFICATIONS = [
+  { id:'1', type:'like',             title:'🔥 New Like',        body:'pipe_dawg_77 liked your weld (83 · B)',              time:'2m ago',  read:false },
+  { id:'2', type:'comment',          title:'💬 New Comment',     body:'ironworker_pnw: "Clean tie-ins. What filler?"',       time:'14m ago', read:false },
+  { id:'3', type:'follow',           title:'👤 New Follower',    body:'stainless_sal started following you',                 time:'1h ago',  read:false },
+  { id:'4', type:'challenge_result', title:'🏆 Challenge Update', body:'You\'re ranked #3 in this week\'s TIG challenge',   time:'2h ago',  read:true  },
+  { id:'5', type:'score_complete',   title:'⚡ Weld Scored',     body:'Your weld scored 83/100 · Grade B',                  time:'3h ago',  read:true  },
+  { id:'6', type:'like',             title:'🔥 New Like',        body:'fab_king_tx liked your weld (89 · A)',               time:'5h ago',  read:true  },
+];
+
+function NotificationsScreen({ onClose }: { onClose: () => void }) {
+  const [notifs, setNotifs] = useState(DEMO_NOTIFICATIONS);
+
+  function markAllRead() {
+    setNotifs(prev => prev.map(n => ({ ...n, read: true })));
+  }
+
+  return (
+    <View style={styles.notifScreen}>
+      <View style={styles.notifHeader}>
+        <TouchableOpacity onPress={onClose} style={styles.backBtn}>
+          <Text style={styles.backBtnText}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.notifTitle}>NOTIFICATIONS</Text>
+        <TouchableOpacity onPress={markAllRead}>
+          <Text style={styles.notifMarkRead}>Mark all read</Text>
+        </TouchableOpacity>
+      </View>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
+        {notifs.map(n => (
+          <TouchableOpacity
+            key={n.id}
+            style={[styles.notifRow, !n.read && styles.notifRowUnread]}
+            onPress={() => setNotifs(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x))}
+          >
+            <View style={styles.notifDot}>
+              {!n.read && <View style={styles.notifDotActive} />}
+            </View>
+            <View style={styles.notifContent}>
+              <Text style={styles.notifRowTitle}>{n.title}</Text>
+              <Text style={styles.notifRowBody}>{n.body}</Text>
+              <Text style={styles.notifRowTime}>{n.time}</Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>('signin');
   const [email, setEmail] = useState('');
@@ -1899,6 +1948,8 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('analyze');
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(3);
 
   async function handleSignIn() {
     if (!email || !password) return;
@@ -2053,9 +2104,21 @@ export default function App() {
         <View style={styles.header}>
           <Image source={LOGO_ICON} style={styles.headerLogoImage} resizeMode="contain" />
           <Text style={styles.headerLogoText}>HOTPASS</Text>
+          <TouchableOpacity style={styles.headerNotifBtn} onPress={() => setShowNotifications(true)}>
+            <Text style={styles.headerNotifIcon}>🔔</Text>
+            {unreadCount > 0 && (
+              <View style={styles.headerNotifBadge}>
+                <Text style={styles.headerNotifBadgeText}>{unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.screenContent}>
+        {showNotifications && (
+          <NotificationsScreen onClose={() => { setShowNotifications(false); setUnreadCount(0); }} />
+        )}
+
+        <View style={[styles.screenContent, showNotifications && { display: 'none' }]}>
           {tab === 'analyze'   && <AnalyzeScreen />}
           {tab === 'machine'   && <MachineScreen />}
           {tab === 'progress'  && <ProgressScreen />}
@@ -2310,6 +2373,24 @@ const styles = StyleSheet.create({
   paramBox:           { width: '47%', backgroundColor: '#000', borderRadius: 6, padding: 14, alignItems: 'center' },
   paramValue:         { color: '#fff', fontSize: 15, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
   paramLabel:         { color: '#626362', fontSize: 11, letterSpacing: 1 },
+
+  // Notifications
+  headerNotifBtn:       { marginLeft: 'auto' as any, padding: 4, position: 'relative' },
+  headerNotifIcon:      { fontSize: 20 },
+  headerNotifBadge:     { position: 'absolute', top: 0, right: 0, backgroundColor: '#CB2027', borderRadius: 8, minWidth: 16, height: 16, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 3 },
+  headerNotifBadgeText: { color: '#fff', fontSize: 9, fontWeight: '900' },
+  notifScreen:          { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#080808', zIndex: 100 },
+  notifHeader:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#111' },
+  notifTitle:           { color: '#fff', fontSize: 12, fontWeight: '900', letterSpacing: 3 },
+  notifMarkRead:        { color: '#444', fontSize: 11, letterSpacing: 1 },
+  notifRow:             { flexDirection: 'row', alignItems: 'flex-start', padding: 16, borderBottomWidth: 1, borderBottomColor: '#0f0f0f' },
+  notifRowUnread:       { backgroundColor: '#0d0000' },
+  notifDot:             { width: 20, alignItems: 'center', paddingTop: 4 },
+  notifDotActive:       { width: 8, height: 8, borderRadius: 4, backgroundColor: '#CB2027' },
+  notifContent:         { flex: 1 },
+  notifRowTitle:        { color: '#fff', fontSize: 13, fontWeight: '700', marginBottom: 3 },
+  notifRowBody:         { color: '#888', fontSize: 13, lineHeight: 18, marginBottom: 4 },
+  notifRowTime:         { color: '#333', fontSize: 11, letterSpacing: 1 },
 
   // Onboarding
   onboardingScreen:       { flex: 1 },
